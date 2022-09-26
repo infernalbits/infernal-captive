@@ -1,10 +1,12 @@
 
 # imports that will probably be needed
 import platform
-import netifaces
-import subprocess
-import sys
-import os
+import nmap, socket, ipaddress, netifaces
+import subprocess, sys, os, argparse
+from get_mac import get_mac_address as getMac
+from alive_progress import alive_bar; import time
+
+
 # due to lack of multi-line comment support in python
 # script info and author are documented with variables
 script = 'escCaptivity.py'
@@ -31,6 +33,11 @@ Additions, translations, Compatibility Upgrades by dropdeadredd.
 notes = 'Acess to, and the use of, Information is an unalienable human right and should not be used for profit.'
 notesCont = 'Justified subversive acts are a form of patriotism and when made illegal are gross misappropriations of justice.'
 
+with alive_bar(total) as bar:
+    for _ in range(1000):
+        time.sleep(.001)
+        bar()
+            
 
 def findOS():
     from time import sleep
@@ -43,52 +50,39 @@ def findOS():
         sleep(5)
         print('Install either Linux or Windows to [esc] Captivity.')
         exit(1)
+    elif check_ops != ops[-1]:
+        linuxParams()
+    else:
+        netParams()
 
 
-def netParams():
 
-    # Wireless network parameters variable creation and population
-interface = iface = None  # wireless interface (wlan0)
-# linux command : ip -o -4 route show to default | awk '/dev/ {print $5}' | head -n1
-# windows comp : use iface instead of interfacce and
-localip = None  # local ip address (172.16.0.187/23)
-# linux command : ip -o -4 route get 1 | awk '/src/ {print $7}'
-# windows comp :
-wifissid = None  # wifi network (ESAconnect)
-# linux command : iw dev '$interface' link | awk '/SSID/ {print $NF}'
-# windows comp :
-gateway = None  # wifi network gateway (172.16.0.1)
-# linux command : ip -o -4 route show to default | awk '/via/ {print $3}'
-# windows comp :
-broadcast = None  # broadcast network ip
-# linux command : ip -o -4 addr show dev '$interface' | awk '/brd/ {print $6}'
-# windows comp :
-ipmask = None  # ip mask
-# linux command : ip -o -4 addr show dev '$interface' | awk '/inet/ {print $4}'
-# windows comp :
-netmask = None  # sub? netmask (255.255.254.0)
-# linux command : $(printf "%s\n" '$ipmask' | cut -d "/" -f 2)
-# windows comp :
-netaddress = None  # network address
-# linux command : $(sipcalc "$ipmask" | awk '/Network address/ {print $NF}')
-# windows comp :
-network = None  # network to search for already authenticated suggestions
-# linux command : "$netaddress/$netmask"
-# windows comp :
-macaddress = None  # local mac address
-# linux command : $(ip -0 addr show dev "$interface" \
-#                  | awk '/link/ && /ether/ {print $2}' \
-#                  | tr '[:upper;}' '[:lower:]')
-# windows comp : get_mac.get_mac_address(interface=iface)
-
-
-def getopts():  # command line arguments
-    import argparse
-    import
-    # create and parse command line arguments using bash getopts
-    # python using argvparse or better
-    pass
-
+netParams = [] # output of wifi parameters in either list of dict with name:output for each key pair
+hostname = socket.gethostname()
+localip = socket.gethostbyname(hostname)
+broadcast = ipaddress.IPv4Network.broadcast.address
+netmask = ipaddress.IPv4Network.netmask
+gateway = netifaces.gateways()
+wifissid = 
+ipmask =
+network = 
+macaddress = 
+netaddress =
+iface = 
+netParams.append()
+linuxParams = [] # output of wifi parameters in either list of dict with name:output for each key pair
+linux.iface = subproccess.call("ip -o -4 route show to default | awk '/dev/ {print $5}' | head -n1", shell=True)
+linux.localip = subprocess.call("ip -o -4 route get 1 | awk '/src/ {print $7}'", shell=True)
+linux.wifissid = subproccess.call(f"iw dev '{iface}' link " + "| awk '/SSID/ {print $NF}'", shell=True)
+linux.gateway = subproccess.call("ip -o -4 route show to default | awk '/via/ {print $3}'", shell=True)
+linux.broadcast = subproccess.call(f"ip -o -4 addr show dev '{iface}' " + "| awk '/brd/ {print $6}'", shell=True)
+linux.ipmask = subprocess.call(f"ip -o -4 addr show dev '{interface}' " + "| awk '/inet/ {print $4}'", shell=True)
+linux.netmask = subproccess.call(f"printf '%s\n' {ipmask} | cut -d '/' -f 2", shell=True)
+linux.netaddress = subproccess.call(f"sipcalc '{ipmask}' " + "| awk '/Network address/ {print $NF}", shell=True)
+linux.network = netaddress/netmask
+linux.macaddress = subproccess.call(f"ip -0 addr show dev '{interface}' " + "| awk '/link/ && /ether/ {print $2}' | tr '[:upper;}' '[:lower:]'", shell=True)
+linuxParams.append(iface, localip, wifissid, gateway, broadcast, ipmask, netmask, netaddress, network, macaddress)
+    
 
 def check_sudo():
     admin = 1
@@ -126,6 +120,7 @@ def calc_network():
 
 
 def routermac():
+    import nmap
     # encapsulate routermac var with router mac address
     # with output from nmap grep and tr
     # linux command : getroutermac="$(nmap -n -sn -PR -PS -PA -PU -T5 $gateway | grep -E -o '[A-Z0-9:]{17}' | tr A-Z a-z)"
@@ -183,10 +178,24 @@ def main():
     # ip route add default via $gateway
     pass
 
-
+parser = argparse.ArgumentParser(description='Optional app description')
+    # Required positional argument
+parser.add_argument('pos_arg', type=int,
+                         help='A required integer positional argument')
+    # Optional positional argument
+parser.add_argument('opt_pos_arg', type=int, nargs='?',
+                        help='An optional integer positional argument')
+    # Optional argument
+parser.add_argument('--opt_arg', type=int,
+                        help='An optional integer argument')
+    # Switch
+parser.add_argument('--switch', action='store_true',
+                        help='A boolean switch')
 # call functions
 if __name__ = '__main__':
-    getopts()
+    args = parser.parse_args()
+    if args.pos_arg > 10:
+        parser.error("pos_arg cannot be larger than 10")
     clean_up()  # trap clean_up function with 0 1 2 3 15
     check_sudo()
     create_temp()
