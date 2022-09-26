@@ -1,6 +1,6 @@
-# escCaptivity
-![alt text][logo]
 
+![alttext][logo]
+# escCaptivity
 Bypass captive portals that inhibit the free use of wifi networks and hotpots in airports, hotels, etc.
 
 
@@ -20,4 +20,4 @@ Bypass captive portals that inhibit the free use of wifi networks and hotpots in
 
 
 
-[logo]:https://github.com/drpdeadredd/escCaptivity/raw/main/escCapLogo.png "escCaptitivty Logo"
+[logo]: https://github.com/drpdeadredd/escCaptivity/blob/36e69fe53ce2ba162d1eda1281eba7d772a76626/common/images/escCapLogo.png 
