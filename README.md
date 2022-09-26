@@ -19,4 +19,4 @@ Bypass captive portals that inhibit the free use of wifi networks and hotpots in
 
 
 
-[logo]:https://raw.githubusercontent.com/drpdeadredd/escCaptivity/main/escCaptivity.png?token=GHSAT0AAAAAABYKPFZ4Y7QHETNPGQZXO5JKYZSDQEQ
+[logo]:https://raw.githubusercontent.com/drpdeadredd/escCaptivity/raw/main/escCapLogo.png
