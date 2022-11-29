@@ -6,9 +6,6 @@ import subprocess, sys, os, argparse
 from get_mac import get_mac_address as getMac
 from alive_progress import alive_bar; import time
 
-
-# due to lack of multi-line comment support in python
-# script info and author are documented with variables
 script = 'escCaptivity.py'
 version = '2.0'
 pyVersion = '3.1x'
@@ -94,9 +91,6 @@ def check_sudo():
 def create_temp():
     import sys
     tmp = ''
-    # unset tmp
-    # create tmp var and populate it with mktemp command
-    # mktemp -q -d || or pipe mktemp failed exit 1
     with open(tmp, 'w+') as tmpfile:
         tmpfile.write('sometext\n')
         tmpfile.writelines(['a\n', 'b\n', 'c\n'])
