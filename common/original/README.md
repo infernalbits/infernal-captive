@@ -1,7 +1,6 @@
-# Infernal Captive
-> Captive Portal Bypass Tool 
+# Captive-Mial: Captive Portal Bypass Tool
 
-`infernal-captive.sh` is a powerful shell script designed to bypass captive portals on Wi-Fi networks. It works by scanning the local network for already authenticated clients and then "hijacking" their session by spoofing their IP and MAC address.
+`captive-mial.sh` is a powerful shell script designed to bypass captive portals on Wi-Fi networks. It works by scanning the local network for already authenticated clients and then "hijacking" their session by spoofing their IP and MAC address.
 
 This tool is designed for portability and ease of use, with automatic detection of network parameters and cross-platform support for both **Linux** and **macOS**.
 
@@ -57,16 +56,16 @@ To make the script runnable from anywhere in your terminal, follow these steps:
 
 1.  **Make the script executable:**
     ```bash
-    chmod +x infernal-captive.sh
+    chmod +x captive-mial.sh
     ```
 
 2.  **Move it to a directory in your `$PATH`:**
     A common location for user-installed scripts is `/usr/local/bin`.
     ```bash
-    sudo mv infernal-captive.sh /usr/local/bin/infernal-captive
+    sudo mv captive-mial.sh /usr/local/bin/captive-mial
     ```
 
-You can now run the script from any terminal window by typing `infernal-captive`.
+You can now run the script from any terminal window by typing `captive-mial`.
 
 ---
 
@@ -79,7 +78,7 @@ The script **must be run with `sudo`** because it needs root privileges to chang
 In most cases, the script can auto-detect all required network parameters. Simply run:
 
 ```bash
-sudo infernal-captive
+sudo captive-mial
 ```
 
 ### Command-Line Options
@@ -87,13 +86,13 @@ sudo infernal-captive
 You can use the `-h` or `--help` flag to see all available options.
 
 ```bash
-sudo infernal-captive --help
+sudo captive-mial --help
 ```
 
 ```text
-infernal-captive - Captive Portal Bypass Tool - Hijack IP and MAC for valid credentials
+captive-mial - Captive Portal Bypass Tool - Hijack IP and MAC for valid credentials
 
- infernal-captive [parameters] 
+ captive-mial [parameters] 
 
 Parameters:
 
@@ -116,8 +115,7 @@ Parameters:
 If the script fails or you want to see what's happening behind the scenes, use the `--debug` flag.
 
 ```bash
-sudo infernal-captive --debug
+sudo captive-mial --debug
 ```
 
 This will print detailed step-by-step information to a log file located in a temporary directory (e.g., `/tmp/hackaptive_XXXXXXXXXX/script.log`). The script will print the location of this directory when debug mode is enabled.
-
