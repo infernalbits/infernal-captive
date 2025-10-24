@@ -1,5 +1,7 @@
-# Infernal Captive
+# Unholy HotSpot 
 > Captive Portal Bypass Tool 
+#### Another piece of the Infernal Code
+##### The Desecration of Data Has ALready Begun
 
 `infernal-captive.sh` is a powerful shell script designed to bypass captive portals on Wi-Fi networks. It works by scanning the local network for already authenticated clients and then "hijacking" their session by spoofing their IP and MAC address.
 
