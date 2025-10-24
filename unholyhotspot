@@ -348,8 +348,8 @@ main() {
       fi
 
       if [[ "$getroutermac" != "$newmac" ]]; then
-            echo "Attempting to use the credentials associated with ip: $newip & mac: $newmac to Bypass the Captive Portal on $ssid"
-            log "INFO" "Attempting to hijack IP: $newip with MAC: $newmac"
+            echo "Attempting handshake with $ssid as $newip & $newmac"
+            log "INFO" "Attempting to use IP: $newip with MAC: $newmac"
 
             local os
             os=$(uname)
